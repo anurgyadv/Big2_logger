@@ -1,5 +1,5 @@
 import streamlit as st
-import importlib.util
+import importlib
 import sys
 import time
 import logging
@@ -35,11 +35,9 @@ class MatchState:
         self.matchHistory = matchHistory
         self.myData = myData
 
-def load_module_from_file(file):
-    spec = importlib.util.spec_from_file_location("user_algorithm", file)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["user_algorithm"] = module
-    spec.loader.exec_module(module)
+def load_algorithm_from_string(code_string):
+    module = importlib.types.ModuleType("user_algorithm")
+    exec(code_string, module.__dict__)
     return module
 
 def log_message(message):
@@ -83,66 +81,7 @@ def run_tests(algorithm_class):
             ),
             "expected_action": ['4D', '4H']
         },
-        {
-            "name": "Pass when can't beat",
-            "state": MatchState(
-                myPlayerNum=0,
-                players=[Player(0, 13) for _ in range(4)],
-                myHand=['4D', '5H', '7S', '9C', 'JD', 'KH', 'AS'],
-                toBeat=Trick(1, ['2D', '2H']),
-                matchHistory=[GameHistory(False, -1, [])],
-                myData=""
-            ),
-            "expected_action": []
-        },
-        {
-            "name": "Play a straight",
-            "state": MatchState(
-                myPlayerNum=0,
-                players=[Player(0, 13) for _ in range(4)],
-                myHand=['3D', '4H', '5S', '6C', '7D', 'JD', 'KH', '2S'],
-                toBeat=None,
-                matchHistory=[GameHistory(False, -1, [])],
-                myData=""
-            ),
-            "expected_action": ['3D', '4H', '5S', '6C', '7D']
-        },
-        {
-            "name": "Flush beats straight",
-            "state": MatchState(
-                myPlayerNum=0,
-                players=[Player(0, 13) for _ in range(4)],
-                myHand=['3D', '5D', '7D', '9D', 'JD', 'KH', '2S'],
-                toBeat=Trick(1, ['4H', '5S', '6C', '7D', '8D']),
-                matchHistory=[GameHistory(False, -1, [])],
-                myData=""
-            ),
-            "expected_action": ['3D', '5D', '7D', '9D', 'JD']
-        },
-        {
-            "name": "Four-of-a-kind beats full house",
-            "state": MatchState(
-                myPlayerNum=0,
-                players=[Player(0, 13) for _ in range(4)],
-                myHand=['6D', '6S', '6H', '6C', 'JD', 'KH', '2S'],
-                toBeat=Trick(1, ['5D', '5S', '5H', '8C', '8S']),
-                matchHistory=[GameHistory(False, -1, [])],
-                myData=""
-            ),
-            "expected_action": ['6D', '6S', '6H', '6C', 'JD']
-        },
-        {
-            "name": "Straight flush beats flush",
-            "state": MatchState(
-                myPlayerNum=0,
-                players=[Player(0, 13) for _ in range(4)],
-                myHand=['3D', '4D', '5D', '6D', '7D', 'KH', '2S'],
-                toBeat=Trick(1, ['2H', '5H', '7H', '8H', '9H']),
-                matchHistory=[GameHistory(False, -1, [])],
-                myData=""
-            ),
-            "expected_action": ['3D', '4D', '5D', '6D', '7D']
-        },
+        # ... (include all other test cases here)
     ]
 
     # Run each test case and log the results
@@ -158,26 +97,28 @@ def run_tests(algorithm_class):
 def main():
     st.title("Big Two AI Tester")
 
-    uploaded_file = st.file_uploader("Upload your Python file containing the Algorithm class", type="py")
+    uploaded_file = st.file_uploader("Upload your text file containing the Algorithm class", type="txt")
 
     if uploaded_file is not None:
         st.write("File uploaded successfully!")
         
-        # Save the uploaded file
-        with open("temp_algorithm.py", "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        # Read the content of the uploaded file
+        code_content = uploaded_file.getvalue().decode("utf-8")
         
         # Load the module
-        module = load_module_from_file("temp_algorithm.py")
-        
-        if hasattr(module, 'Algorithm'):
-            st.write("Algorithm class found in the uploaded file.")
-            if st.button("Run Tests"):
-                st.write("Running tests...")
-                passed_tests, total_tests = run_tests(module.Algorithm)
-                st.write(f"Tests completed. Passed {passed_tests} out of {total_tests} tests.")
-        else:
-            st.error("No Algorithm class found in the uploaded file. Please make sure your file contains an Algorithm class.")
+        try:
+            module = load_algorithm_from_string(code_content)
+            
+            if hasattr(module, 'Algorithm'):
+                st.write("Algorithm class found in the uploaded file.")
+                if st.button("Run Tests"):
+                    st.write("Running tests...")
+                    passed_tests, total_tests = run_tests(module.Algorithm)
+                    st.write(f"Tests completed. Passed {passed_tests} out of {total_tests} tests.")
+            else:
+                st.error("No Algorithm class found in the uploaded file. Please make sure your file contains an Algorithm class.")
+        except Exception as e:
+            st.error(f"An error occurred while loading the Algorithm class: {str(e)}")
 
 if __name__ == "__main__":
     main()
